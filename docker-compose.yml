@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  nexus-cli:
+    build: .
+    volumes:
+      # Mount the current directory to the app directory in the container
+      - .:/app
+      # Mount SSH directory to allow SSH key access
+      - ~/.ssh:/home/appuser/.ssh:ro
+      # Mount config directory separately if needed
+      - ./config:/app/config
+    environment:
+      - SSH_HOST=${SSH_HOST:-localhost}
+      - SSH_USER=${SSH_USER:-root}
+      - SSH_PORT=${SSH_PORT:-22}
+      - SSH_PASSWORD=${SSH_PASSWORD}
+      - SSH_KEY_PATH=${SSH_KEY_PATH}
+    # For interactive use
+    stdin_open: true
+    tty: true
+    # If you need to expose ports for SSH tunneling
+    ports:
+      - "2222:22"
+    # Set working directory
+    working_dir: /app

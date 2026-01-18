@@ -1,0 +1,69 @@
+{
+  "monitoring": [
+    {
+      "keywords": [
+        "cek ram",
+        "lihat memori",
+        "memory status",
+        "check memory",
+        "ram usage"
+      ],
+      "command": "free -m",
+      "description": "Menampilkan status RAM server"
+    },
+    {
+      "keywords": [
+        "cek disk",
+        "penyimpanan",
+        "storage",
+        "disk usage"
+      ],
+      "command": "df -h",
+      "description": "Menampilkan sisa penyimpanan disk utama"
+    }
+  ],
+  "system": [
+    {
+      "keywords": [
+        "cek uptime",
+        "server uptime",
+        "berapa lama hidup"
+      ],
+      "command": "uptime",
+      "description": "Menampilkan berapa lama server sudah menyala"
+    },
+    {
+      "keywords": [
+        "cek proses",
+        "process list",
+        "running processes"
+      ],
+      "command": "ps aux",
+      "description": "Menampilkan proses yang berjalan"
+    }
+  ],
+  "proxmox": [
+    {
+      "pattern": "hidupkan vm (\\\\d+)",
+      "command": "qm start {0}",
+      "description": "Menyalakan Virtual Machine Proxmox berdasarkan ID"
+    },
+    {
+      "pattern": "matikan vm (\\\\d+)",
+      "command": "qm stop {0}",
+      "is_dangerous": true,
+      "description": "Mematikan VM (Membutuhkan Konfirmasi)"
+    }
+  ],
+  "laravel": [
+    {
+      "keywords": [
+        "deploy web",
+        "update server",
+        "deploy aplikasi"
+      ],
+      "command": "cd /var/www/html/my-app && git pull && composer install --no-dev",
+      "description": "Auto-deploy update terbaru dari Git"
+    }
+  ]
+}
