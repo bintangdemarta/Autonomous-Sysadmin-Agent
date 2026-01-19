@@ -16,6 +16,7 @@ def connect_to_server():
     host = os.getenv('PROXMOX_HOST')
     user = os.getenv('PROXMOX_USER')
     password = os.getenv('PROXMOX_PASSWORD')
+    server_name = os.getenv('SERVER_NAME', 'Ubuntu-Server')
 
     # Validate that all credentials are present
     if not all([host, user, password]):
@@ -35,7 +36,7 @@ def connect_to_server():
         stdin, stdout, stderr = ssh_client.exec_command('hostname')
         hostname = stdout.read().decode().strip()
 
-        print(f"Successfully connected to Ubuntu-Server: {hostname}")
+        print(f"Successfully connected to {server_name}: {hostname}")
         print(f"Server IP: {host}")
 
         # Close the connection
@@ -44,7 +45,7 @@ def connect_to_server():
         return True
 
     except Exception as e:
-        print(f"Failed to connect to Ubuntu-Server: {str(e)}")
+        print(f"Failed to connect to {server_name}: {str(e)}")
         return False
 
 if __name__ == "__main__":
