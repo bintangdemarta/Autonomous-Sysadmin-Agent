@@ -4,6 +4,10 @@ import json
 import os
 from threading import Thread
 import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
@@ -13,16 +17,19 @@ command_history = []
 @app.route('/')
 def index():
     """Main dashboard page"""
+    print("Index route accessed")
     return render_template('index.html')
 
 @app.route('/dashboard')
 def dashboard():
     """Dashboard with system info"""
+    print("Dashboard route accessed")
     return render_template('index.html')
 
 @app.route('/commands')
 def commands():
     """Page to manage commands"""
+    print("Commands route accessed")
     return render_template('commands.html')
 
 @app.route('/execute', methods=['POST'])
@@ -30,15 +37,16 @@ def execute_command():
     """Execute a command via Nexus-CLI"""
     try:
         user_input = request.json.get('command', '')
-        
+        print(f"Received command: {user_input}")
+
         if not user_input.strip():
             return jsonify({'error': 'Command cannot be empty'}), 400
-        
+
         # Execute the command using Nexus-CLI
         # Note: In a real implementation, this would connect to an actual SSH server
         # For demo purposes, we'll simulate the response
         result = simulate_nexus_cli_command(user_input)
-        
+
         # Add to command history
         command_entry = {
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -47,13 +55,15 @@ def execute_command():
             'success': result['success']
         }
         command_history.insert(0, command_entry)
-        
+
         # Keep only the last 50 commands
         if len(command_history) > 50:
             command_history[:] = command_history[:50]
-        
+
+        print(f"Command result: {result}")
         return jsonify(result)
     except Exception as e:
+        print(f"Error executing command: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def simulate_nexus_cli_command(user_input):
@@ -68,12 +78,12 @@ def simulate_nexus_cli_command(user_input):
             'output': 'Error: Could not load command configuration',
             'parsed_command': None
         }
-    
+
     # Parse the command (simplified version of what main.py does)
     user_input_lower = user_input.lower().strip()
     matched_command = None
     description = ""
-    
+
     # Search through all command categories
     for category, cmds in commands.items():
         for cmd in cmds:
@@ -93,7 +103,7 @@ def simulate_nexus_cli_command(user_input):
                     # Format command with captured groups
                     matched_command = cmd['command'].format(*match.groups())
                     description = cmd.get('description', '')
-    
+
     if matched_command:
         # Simulate command execution
         simulated_output = f"Simulated execution of: {matched_command}\nDescription: {description}\n\n"
@@ -105,7 +115,7 @@ def simulate_nexus_cli_command(user_input):
             simulated_output += " 11:30:42 up 5 days,  3:21,  2 users,  load average: 0.12, 0.08, 0.05"
         else:
             simulated_output += f"Command '{matched_command}' would be executed on the target server."
-        
+
         return {
             'success': True,
             'output': simulated_output,
@@ -121,6 +131,7 @@ def simulate_nexus_cli_command(user_input):
 @app.route('/history')
 def get_history():
     """Get command execution history"""
+    print(f"History requested, current count: {len(command_history)}")
     return jsonify(command_history)
 
 @app.route('/history/clear', methods=['POST'])
@@ -128,6 +139,7 @@ def clear_history():
     """Clear command execution history"""
     global command_history
     command_history = []
+    print("History cleared")
     return jsonify({'success': True, 'message': 'History cleared successfully'})
 
 @app.route('/config', methods=['GET', 'POST'])
@@ -141,7 +153,7 @@ def manage_config():
             return jsonify({'success': True, 'message': 'Configuration updated successfully'})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
-    
+
     # GET request - return current config
     try:
         with open('config/commands.json', 'r', encoding='utf-8') as f:
@@ -151,4 +163,5 @@ def manage_config():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    print("Starting Flask app on 127.0.0.1:5000")
+    app.run(debug=False, host='127.0.0.1', port=5000)

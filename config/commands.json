@@ -1,69 +1,56 @@
 {
   "monitoring": [
     {
-      "keywords": [
-        "cek ram",
-        "lihat memori",
-        "memory status",
-        "check memory",
-        "ram usage"
-      ],
-      "command": "free -m",
-      "description": "Menampilkan status RAM server"
+      "name": "Check RAM",
+      "command": "free -h",
+      "keywords": ["cek ram", "ram", "memory", "cek memory", "cek memori", "memori"],
+      "description": "Displays system memory usage"
     },
     {
-      "keywords": [
-        "cek disk",
-        "penyimpanan",
-        "storage",
-        "disk usage"
-      ],
+      "name": "Check Disk",
       "command": "df -h",
-      "description": "Menampilkan sisa penyimpanan disk utama"
-    }
-  ],
-  "system": [
+      "keywords": ["cek disk", "disk", "storage", "cek storage", "cek penyimpanan", "penyimpanan"],
+      "description": "Displays disk space usage"
+    },
     {
-      "keywords": [
-        "cek uptime",
-        "server uptime",
-        "berapa lama hidup"
-      ],
+      "name": "Check Uptime",
       "command": "uptime",
-      "description": "Menampilkan berapa lama server sudah menyala"
+      "keywords": ["cek uptime", "uptime", "waktu hidup", "cek waktu hidup"],
+      "description": "Displays system uptime and load averages"
     },
     {
-      "keywords": [
-        "cek proses",
-        "process list",
-        "running processes"
-      ],
+      "name": "Check CPU Info",
+      "command": "lscpu",
+      "keywords": ["cek cpu", "cpu", "cek processor", "processor", "cek prosesor", "prosesor"],
+      "description": "Displays CPU information"
+    },
+    {
+      "name": "Check Network Stats",
+      "command": "netstat -tuln",
+      "keywords": ["cek network", "network", "cek jaringan", "jaringan", "cek koneksi", "koneksi"],
+      "description": "Displays network connections and listening ports"
+    }
+  ],
+  "processes": [
+    {
+      "name": "List Processes",
       "command": "ps aux",
-      "description": "Menampilkan proses yang berjalan"
-    }
-  ],
-  "proxmox": [
-    {
-      "pattern": "hidupkan vm (\\\\d+)",
-      "command": "qm start {0}",
-      "description": "Menyalakan Virtual Machine Proxmox berdasarkan ID"
+      "keywords": ["cek proses", "proses", "cek process", "process", "cek aktifitas", "aktifitas"],
+      "description": "Displays all running processes"
     },
     {
-      "pattern": "matikan vm (\\\\d+)",
-      "command": "qm stop {0}",
-      "is_dangerous": true,
-      "description": "Mematikan VM (Membutuhkan Konfirmasi)"
+      "name": "Top Processes",
+      "command": "top -bn1",
+      "keywords": ["cek top", "top", "cek proses berat", "proses berat"],
+      "description": "Displays top resource-consuming processes"
     }
   ],
-  "laravel": [
+  "users": [
     {
-      "keywords": [
-        "deploy web",
-        "update server",
-        "deploy aplikasi"
-      ],
-      "command": "cd /var/www/html/my-app && git pull && composer install --no-dev",
-      "description": "Auto-deploy update terbaru dari Git"
+      "name": "List Users",
+      "command": "who",
+      "keywords": ["cek user", "user", "cek pengguna", "pengguna", "cek siapa saja", "siapa saja"],
+      "description": "Displays currently logged in users"
     }
   ]
 }
