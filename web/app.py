@@ -4,6 +4,7 @@ import json
 import os
 from threading import Thread
 import time
+import paramiko
 
 app = Flask(__name__)
 
@@ -34,10 +35,8 @@ def execute_command():
         if not user_input.strip():
             return jsonify({'error': 'Command cannot be empty'}), 400
         
-        # Execute the command using Nexus-CLI
-        # Note: In a real implementation, this would connect to an actual SSH server
-        # For demo purposes, we'll simulate the response
-        result = simulate_nexus_cli_command(user_input)
+        # Execute the command using Nexus-CLI via SSH
+        result = execute_ssh_command(user_input)
         
         # Add to command history
         command_entry = {
@@ -56,8 +55,8 @@ def execute_command():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-def simulate_nexus_cli_command(user_input):
-    """Simulate Nexus-CLI command execution"""
+def execute_ssh_command(user_input):
+    """Execute Nexus-CLI command via SSH"""
     # Load commands from config
     try:
         with open('config/commands.json', 'r', encoding='utf-8') as f:
@@ -68,12 +67,12 @@ def simulate_nexus_cli_command(user_input):
             'output': 'Error: Could not load command configuration',
             'parsed_command': None
         }
-    
+
     # Parse the command (simplified version of what main.py does)
     user_input_lower = user_input.lower().strip()
     matched_command = None
     description = ""
-    
+
     # Search through all command categories
     for category, cmds in commands.items():
         for cmd in cmds:
@@ -93,24 +92,56 @@ def simulate_nexus_cli_command(user_input):
                     # Format command with captured groups
                     matched_command = cmd['command'].format(*match.groups())
                     description = cmd.get('description', '')
-    
+
     if matched_command:
-        # Simulate command execution
-        simulated_output = f"Simulated execution of: {matched_command}\nDescription: {description}\n\n"
-        if "ram" in user_input_lower or "memory" in user_input_lower:
-            simulated_output += "              total        used        free      shared  buff/cache   available\nMem:           7.7G        1.2G        5.2G        232M        1.3G        6.1G\nSwap:            0B          0B          0B"
-        elif "disk" in user_input_lower or "storage" in user_input_lower:
-            simulated_output += "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        20G  5.2G   14G  28% /\n/dev/sda2       100G   12G   84G  13% /home"
-        elif "uptime" in user_input_lower:
-            simulated_output += " 11:30:42 up 5 days,  3:21,  2 users,  load average: 0.12, 0.08, 0.05"
-        else:
-            simulated_output += f"Command '{matched_command}' would be executed on the target server."
-        
-        return {
-            'success': True,
-            'output': simulated_output,
-            'parsed_command': matched_command
-        }
+        # Execute the command via SSH
+        try:
+            # Load SSH credentials from environment or config
+            import os
+            from dotenv import load_dotenv
+            load_dotenv()
+
+            host = os.getenv('PROXMOX_HOST', '100.124.247.81')
+            user = os.getenv('PROXMOX_USER', 'bintangdmrt')
+            password = os.getenv('PROXMOX_PASSWORD', 'SecurePass2026!')
+
+            # Create SSH client
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Connect to the server
+            ssh_client.connect(hostname=host, username=user, password=password)
+
+            # Execute the command
+            stdin, stdout, stderr = ssh_client.exec_command(matched_command)
+
+            # Get the output
+            output = stdout.read().decode('utf-8')
+            error = stderr.read().decode('utf-8')
+
+            # Close the connection
+            ssh_client.close()
+
+            # Return the result
+            if error:
+                return {
+                    'success': False,
+                    'output': f"Command: {matched_command}\nDescription: {description}\n\nError: {error}",
+                    'parsed_command': matched_command
+                }
+            else:
+                return {
+                    'success': True,
+                    'output': f"Command: {matched_command}\nDescription: {description}\n\n{output}",
+                    'parsed_command': matched_command
+                }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'output': f"Failed to execute command via SSH: {str(e)}",
+                'parsed_command': matched_command
+            }
     else:
         return {
             'success': False,
