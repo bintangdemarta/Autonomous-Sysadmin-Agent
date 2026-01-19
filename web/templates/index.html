@@ -1,20 +1,137 @@
-<!DOCTYPE html>  
-<html lang="en">  
-<head>  
-    <meta charset="UTF-8">  
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">  
-    <title>Nexus-CLI Dashboard</title>  
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">  
-</head>  
-<body>  
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">  
-        <div class="container">  
-            <a class="navbar-brand" href="/">Nexus-CLI</a>  
-        </div>  
-    </nav>  
-    <div class="container mt-4">  
-        <h1>Nexus-CLI Web Interface</h1>  
-        <p>Welcome to the Nexus-CLI web interface for server management.</p>  
-    </div>  
-</body>  
-</html> 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus-CLI Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">Nexus-CLI</a>
+            <div class="navbar-nav">
+                <a class="nav-link active" href="/">Dashboard</a>
+                <a class="nav-link" href="/commands">Commands</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1>System Dashboard</h1>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Memory Usage</h5>
+                        <p class="card-text">
+                            <span id="ram-info">Loading...</span>
+                        </p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="executeCommand('cek ram')">Refresh</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Disk Usage</h5>
+                        <p class="card-text">
+                            <span id="disk-info">Loading...</span>
+                        </p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="executeCommand('cek disk')">Refresh</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Uptime</h5>
+                        <p class="card-text">
+                            <span id="uptime-info">Loading...</span>
+                        </p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="executeCommand('cek uptime')">Refresh</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Quick Commands</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                            <button class="btn btn-outline-secondary me-md-2" onclick="executeCommand('cek ram')">Check RAM</button>
+                            <button class="btn btn-outline-secondary me-md-2" onclick="executeCommand('cek disk')">Check Disk</button>
+                            <button class="btn btn-outline-secondary me-md-2" onclick="executeCommand('cek uptime')">Check Uptime</button>
+                            <button class="btn btn-outline-secondary me-md-2" onclick="executeCommand('cek proses')">Check Processes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Command Output</h5>
+                    </div>
+                    <div class="card-body">
+                        <pre id="command-output" class="bg-light p-3">Execute a command to see output here...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Function to execute commands via API
+        async function executeCommand(command) {
+            try {
+                document.getElementById('command-output').textContent = 'Executing...';
+
+                const response = await fetch('/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: command })
+                });
+
+                const result = await response.json();
+
+                document.getElementById('command-output').textContent = result.output;
+
+                // Update dashboard info if relevant command was executed
+                if (command.includes('ram')) {
+                    document.getElementById('ram-info').textContent = result.success ?
+                        result.output.split('\n')[1] || 'RAM info loaded' : 'Error loading RAM info';
+                } else if (command.includes('disk')) {
+                    document.getElementById('disk-info').textContent = result.success ?
+                        result.output.split('\n')[1] || 'Disk info loaded' : 'Error loading disk info';
+                } else if (command.includes('uptime')) {
+                    document.getElementById('uptime-info').textContent = result.success ?
+                        result.output.trim() : 'Error loading uptime info';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('command-output').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Load initial dashboard data
+        window.onload = function() {
+            executeCommand('cek ram');
+            setTimeout(() => executeCommand('cek disk'), 500);
+            setTimeout(() => executeCommand('cek uptime'), 1000);
+        };
+    </script>
+</body>
+</html>
