@@ -68,3 +68,4 @@ This document summarizes the enhancement of the Autonomous Sysadmin Agent (Nexus
 - **Access Method**: Direct Tailscale IP (temporary) → Cloudflare Tunnel (future)
 - **Application Health**: Running and responsive with container features
 - **Data Source**: Live server data (real SSH/Docker execution)
+- **Docker Endpoints**: Verified as operational (returning valid JSON responses)
