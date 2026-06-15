@@ -180,7 +180,7 @@ def list_containers():
         
         # Parse the output
         containers = []
-        lines = output.strip().split('\n')[1:]  # Skip header
+        lines = output.strip().splitlines()
         for line in lines:
             if line.strip():
                 parts = line.split('\t')
@@ -271,7 +271,7 @@ def list_images():
         
         # Parse the output
         images = []
-        lines = output.strip().split('\n')[1:]  # Skip header
+        lines = output.strip().splitlines()
         for line in lines:
             if line.strip():
                 parts = line.split('\t')
