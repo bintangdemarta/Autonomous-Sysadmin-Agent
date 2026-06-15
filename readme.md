@@ -32,7 +32,7 @@ cd Autonomous-Sysadmin-Agent
 # Copy environment file
 cp .env.example .env
 
-# Edit .env with your server credentials
+# Edit .env with your server credentials and optional web auth
 nano .env
 
 # Build and run
@@ -107,8 +107,27 @@ The system uses `config/commands.json` to define command mappings:
 
 - Human-in-the-loop validation for dangerous commands
 - Secure SSH connections using Paramiko
-- Environment-based credential management
+- Environment-based credential management with no committed default secrets
+- Optional HTTP Basic Auth for the Flask dashboard via `NEXUS_WEB_USERNAME` and `NEXUS_WEB_PASSWORD`
+- Persistent JSONL audit logging for executions
 - Configurable safety checks
+
+
+## Runtime Configuration
+
+Copy `.env.example` to `.env` and configure these variables before connecting to real infrastructure:
+
+```env
+NEXUS_SSH_HOST=your-server.example.com
+NEXUS_SSH_PORT=22
+NEXUS_SSH_USER=your-ssh-user
+NEXUS_SSH_PASSWORD=
+NEXUS_SSH_KEY_PATH=/home/you/.ssh/id_ed25519
+NEXUS_WEB_USERNAME=admin
+NEXUS_WEB_PASSWORD=change-me
+```
+
+Commands marked with `requires_confirmation: true` must be explicitly confirmed using `--yes` in the CLI or `confirmed: true` in the web API payload.
 
 ## Extending Functionality
 
@@ -121,6 +140,7 @@ The system uses `config/commands.json` to define command mappings:
 
 ```
 ├── main_app.py          # Main CLI application
+├── nexus/              # Shared parser, safety, SSH, config, and audit modules
 ├── config/
 │   └── commands.json    # Command mappings
 ├── web/

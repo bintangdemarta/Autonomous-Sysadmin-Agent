@@ -1,2 +1,5 @@
 __pypackages__/
 .env
+
+data/*.jsonl
+__pycache__/
