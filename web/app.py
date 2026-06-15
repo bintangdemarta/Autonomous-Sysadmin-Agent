@@ -1,185 +1,142 @@
-from flask import Flask, render_template, request, jsonify
-import subprocess
-import json
-import os
-from threading import Thread
+from __future__ import annotations
+
+from functools import wraps
+from pathlib import Path
+import secrets
+import sys
 import time
-import paramiko
+
+from flask import Flask, Response, jsonify, render_template, request
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from nexus.config import ConfigError, get_web_auth_credentials, load_commands, save_commands
+from nexus.runner import run_user_command
 
 app = Flask(__name__)
 
-# Global variable to store command history
+# In-memory display cache for the web UI; authoritative audit logs are written to data/audit_log.jsonl.
 command_history = []
 
-@app.route('/')
+
+def _auth_configured() -> bool:
+    username, password = get_web_auth_credentials()
+    return bool(username and password)
+
+
+def _is_authorized() -> bool:
+    expected_username, expected_password = get_web_auth_credentials()
+    if not expected_username or not expected_password:
+        return True
+
+    auth = request.authorization
+    if not auth:
+        return False
+    return secrets.compare_digest(auth.username, expected_username) and secrets.compare_digest(
+        auth.password, expected_password
+    )
+
+
+def require_auth(view_func):
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        if _is_authorized():
+            return view_func(*args, **kwargs)
+        return Response(
+            "Authentication required",
+            401,
+            {"WWW-Authenticate": 'Basic realm="Nexus-CLI"'},
+        )
+
+    return wrapper
+
+
+@app.route("/")
+@require_auth
 def index():
     """Main dashboard page"""
-    return render_template('index.html')
+    return render_template("index.html", auth_configured=_auth_configured())
 
-@app.route('/dashboard')
+
+@app.route("/dashboard")
+@require_auth
 def dashboard():
     """Dashboard with system info"""
-    return render_template('index.html')
+    return render_template("index.html", auth_configured=_auth_configured())
 
-@app.route('/commands')
+
+@app.route("/commands")
+@require_auth
 def commands():
     """Page to manage commands"""
-    return render_template('commands.html')
+    return render_template("commands.html", auth_configured=_auth_configured())
 
-@app.route('/execute', methods=['POST'])
+
+@app.route("/execute", methods=["POST"])
+@require_auth
 def execute_command():
-    """Execute a command via Nexus-CLI"""
-    try:
-        user_input = request.json.get('command', '')
-        
-        if not user_input.strip():
-            return jsonify({'error': 'Command cannot be empty'}), 400
-        
-        # Execute the command using Nexus-CLI via SSH
-        result = execute_ssh_command(user_input)
-        
-        # Add to command history
-        command_entry = {
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'input': user_input,
-            'output': result['output'],
-            'success': result['success']
-        }
-        command_history.insert(0, command_entry)
-        
-        # Keep only the last 50 commands
-        if len(command_history) > 50:
-            command_history[:] = command_history[:50]
-        
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Execute a command via Nexus-CLI."""
+    payload = request.get_json(silent=True) or {}
+    user_input = payload.get("command", "")
+    confirmed = bool(payload.get("confirmed", False))
 
-def execute_ssh_command(user_input):
-    """Execute Nexus-CLI command via SSH"""
-    # Load commands from config
-    try:
-        with open('config/commands.json', 'r', encoding='utf-8') as f:
-            commands = json.load(f)
-    except:
-        return {
-            'success': False,
-            'output': 'Error: Could not load command configuration',
-            'parsed_command': None
-        }
+    if not user_input.strip():
+        return jsonify({"success": False, "error": "Command cannot be empty"}), 400
 
-    # Parse the command (simplified version of what main.py does)
-    user_input_lower = user_input.lower().strip()
-    matched_command = None
-    description = ""
+    result = run_user_command(user_input, confirmed=confirmed, actor="web")
 
-    # Search through all command categories
-    for category, cmds in commands.items():
-        for cmd in cmds:
-            # Check for keyword matches
-            if 'keywords' in cmd:
-                for keyword in cmd['keywords']:
-                    if keyword in user_input_lower:
-                        matched_command = cmd['command']
-                        description = cmd.get('description', '')
-                        break
-            # Check for pattern matches (regex)
-            if 'pattern' in cmd and not matched_command:
-                import re
-                pattern = cmd['pattern']
-                match = re.search(pattern, user_input_lower)
-                if match:
-                    # Format command with captured groups
-                    matched_command = cmd['command'].format(*match.groups())
-                    description = cmd.get('description', '')
+    command_entry = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "input": user_input,
+        "output": result.get("output", ""),
+        "success": result.get("success", False),
+        "parsed_command": result.get("parsed_command"),
+        "risk_level": result.get("risk_level"),
+    }
+    command_history.insert(0, command_entry)
 
-    if matched_command:
-        # Execute the command via SSH
-        try:
-            # Load SSH credentials from environment or config
-            import os
-            from dotenv import load_dotenv
-            load_dotenv()
+    if len(command_history) > 50:
+        command_history[:] = command_history[:50]
 
-            host = os.getenv('PROXMOX_HOST', '100.124.247.81')
-            user = os.getenv('PROXMOX_USER', 'bintangdmrt')
-            password = os.getenv('PROXMOX_PASSWORD', 'SecurePass2026!')
+    return jsonify(result)
 
-            # Create SSH client
-            ssh_client = paramiko.SSHClient()
-            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            # Connect to the server
-            ssh_client.connect(hostname=host, username=user, password=password)
-
-            # Execute the command
-            stdin, stdout, stderr = ssh_client.exec_command(matched_command)
-
-            # Get the output
-            output = stdout.read().decode('utf-8')
-            error = stderr.read().decode('utf-8')
-
-            # Close the connection
-            ssh_client.close()
-
-            # Return the result
-            if error:
-                return {
-                    'success': False,
-                    'output': f"Command: {matched_command}\nDescription: {description}\n\nError: {error}",
-                    'parsed_command': matched_command
-                }
-            else:
-                return {
-                    'success': True,
-                    'output': f"Command: {matched_command}\nDescription: {description}\n\n{output}",
-                    'parsed_command': matched_command
-                }
-
-        except Exception as e:
-            return {
-                'success': False,
-                'output': f"Failed to execute command via SSH: {str(e)}",
-                'parsed_command': matched_command
-            }
-    else:
-        return {
-            'success': False,
-            'output': f"Command '{user_input}' not recognized. Try commands like 'cek ram', 'cek disk', 'cek uptime', etc.",
-            'parsed_command': None
-        }
-
-@app.route('/history')
+@app.route("/history")
+@require_auth
 def get_history():
-    """Get command execution history"""
+    """Get command execution history."""
     return jsonify(command_history)
 
-@app.route('/history/clear', methods=['POST'])
+
+@app.route("/history/clear", methods=["POST"])
+@require_auth
 def clear_history():
-    """Clear command execution history"""
-    global command_history
-    command_history = []
-    return jsonify({'success': True, 'message': 'History cleared successfully'})
+    """Clear command execution history display cache."""
+    command_history.clear()
+    return jsonify({"success": True, "message": "History cleared successfully"})
 
-@app.route('/config', methods=['GET', 'POST'])
+
+@app.route("/config", methods=["GET", "POST"])
+@require_auth
 def manage_config():
-    """Manage command configuration"""
-    if request.method == 'POST':
+    """Manage command configuration."""
+    if request.method == "POST":
         try:
-            new_config = request.json
-            with open('config/commands.json', 'w', encoding='utf-8') as f:
-                json.dump(new_config, f, indent=2, ensure_ascii=False)
-            return jsonify({'success': True, 'message': 'Configuration updated successfully'})
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 500
-    
-    # GET request - return current config
-    try:
-        with open('config/commands.json', 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        return jsonify(config)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+            new_config = request.get_json(silent=True)
+            save_commands(new_config)
+            return jsonify({"success": True, "message": "Configuration updated successfully"})
+        except ConfigError as exc:
+            return jsonify({"success": False, "error": str(exc)}), 400
+        except Exception as exc:  # noqa: BLE001 - user-facing API should report unexpected failures.
+            return jsonify({"success": False, "error": str(exc)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    try:
+        return jsonify(load_commands())
+    except ConfigError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
+if __name__ == "__main__":
+    app.run(debug=False, host="0.0.0.0", port=5000)

@@ -19,6 +19,7 @@
 
     <div class="container mt-4">
         <h1>System Dashboard</h1>
+        {% if not auth_configured %}<div class="alert alert-warning">Web authentication is not configured. Set NEXUS_WEB_USERNAME and NEXUS_WEB_PASSWORD before exposing this app.</div>{% endif %}
 
         <div class="row">
             <div class="col-md-4">
@@ -106,6 +107,11 @@
                 });
 
                 const result = await response.json();
+
+                if (result.requires_confirmation) {
+                    document.getElementById('command-output').textContent = result.output + '\nConfirmation required; use the Commands page/API with confirmed=true.';
+                    return;
+                }
 
                 document.getElementById('command-output').textContent = result.output;
 

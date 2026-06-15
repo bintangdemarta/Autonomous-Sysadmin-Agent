@@ -11,11 +11,11 @@ services:
       # Mount config directory separately if needed
       - ./config:/app/config
     environment:
-      - SSH_HOST=${SSH_HOST:-localhost}
-      - SSH_USER=${SSH_USER:-root}
-      - SSH_PORT=${SSH_PORT:-22}
-      - SSH_PASSWORD=${SSH_PASSWORD}
-      - SSH_KEY_PATH=${SSH_KEY_PATH}
+      - NEXUS_SSH_HOST=${NEXUS_SSH_HOST:-localhost}
+      - NEXUS_SSH_USER=${NEXUS_SSH_USER:-root}
+      - NEXUS_SSH_PORT=${NEXUS_SSH_PORT:-22}
+      - NEXUS_SSH_PASSWORD=${NEXUS_SSH_PASSWORD}
+      - NEXUS_SSH_KEY_PATH=${NEXUS_SSH_KEY_PATH}
     # For interactive use
     stdin_open: true
     tty: true
